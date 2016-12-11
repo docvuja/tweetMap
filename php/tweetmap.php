@@ -16,5 +16,7 @@ $connection = new TwitterOAuth("lo6DuiQgUw9RaZf5yPueaD8A0",
     "ApOOnqxEzqpwV3KIvbbdj2vMQWHDtQetMK2p0GGBfUYqg");
 
 $content = $connection->get("account/verify_credentials");
-$statuses = $connection->get("search/tweets", ["q" => "", "count" => 100, "geocode" => "40.6976701,-74.2598661,10km" ]);
-echo json_encode($statuses);
+//$statuses = $connection->get("search/tweets", ["q" => "", "count" => 100, "geocode" => "40.6976701,-74.2598661,10km" ]);
+//$statuses = $connection->get("statuses/show", ["id" => "807749687944089602"]);
+//echo json_encode($statuses);
+?>

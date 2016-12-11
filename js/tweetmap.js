@@ -11,8 +11,9 @@ function initMap() {
         zoom: 11
     });
 
-    /*var content = '<blockquote class="twitter-tweet"><a href="https://twitter.com/NBA/status/807749687944089602"></blockquote><script async src="//platform.twitter.com/widgets.js" charset="utf-8"></script>'*/
-    ajaxGet("http://localhost:8888/tweetMap/php/tweetdisplay.php", function (response) {
+    var uri = encodeURIComponent("https://twitter.com/USER/status/807749687944089602");
+    console.log(uri);
+    ajaxGet("http://localhost:8888/tweetMap/php/tweetdisplay.php?url=" + uri, function (response) {
         var embedTweet = JSON.parse(response);
         console.log(embedTweet);
         content = embedTweet.html;
@@ -42,23 +43,25 @@ function initMap() {
             }(document, "script", "twitter-widgets");
         });
     });
-
-
-
-
-
-
 }
 
 
-tweetArray = []
-ajaxGet("http://localhost:8888/tweetMap/php/tweetmap.php", function (response) {
-    var tweets = JSON.parse(response).statuses;
-    console.log(tweets);
-    tweets.forEach(function (tweet) {
-        if (tweet.geo != null)
-            console.log('geo' + tweet.geo);
-        else if (tweet.user.location != null)
-            console.log(tweet.user.location);
+var tweetArray = []
+
+function searchTweets(query, geocode) {
+    // Dont forgot radius for geocode
+    var url = "http://localhost:8888/tweetMap/php/searchtweet.php?q=" + query + "&geocode=" + geocode;
+    console.log(url);
+    ajaxGet(url, function (response) {
+        var tweets = JSON.parse(response).statuses;
+        console.log(tweets);
+        tweets.forEach(function (tweet) {
+            if (tweet.geo != null)
+                console.log('geo' + tweet.geo);
+            else if (tweet.user.location != null)
+                console.log(tweet.user.location);
+        });
     });
-});
+}
+
+searchTweets("psg", "");
