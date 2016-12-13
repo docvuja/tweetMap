@@ -4,7 +4,7 @@ var geocoder;
 var delay = 100;
 var nextIndex = 0;
 var tweetArray = [];
-var markerSet = new Set();
+var markers = [];
 
 var icon = "../res/twitter_icon_little.png";
 var icon_pop = "../res/twitter_icon_popular.png";
@@ -54,9 +54,8 @@ function searchTweets(query, geocode) {
             if (tweet.geo != null)
                 console.log('geo' + tweet.geo);
             else if (tweet.user.location != null && tweet.user.location != '') {
-                console.log(tweet.user.location);
+                //console.log(tweet.user.location);
                 tweetArray.push(tweet);
-                //setInterval(geocodeAddress(geocoder, map, tweet.user.location, tweet.id_str), delay);
             }
         });
         theNext();
@@ -107,7 +106,20 @@ function getAddress(tweet, next) {
             var pos = results[0].geometry.location;
             var latLng = pos.lat() + ',' + pos.lng();
             console.log(latLng);
-            // Create marker
+
+            // Create Marker
+            var marker;
+            if (getMarker(pos)) {
+                marker = getMarker(pos);
+            } else {
+                marker = new google.maps.Marker({
+                    icon: icon,
+                    animation: google.maps.Animation.DROP,
+                    position: results[0].geometry.location
+                });
+                markers.push(marker);
+            }
+            addInfowindow(tweet.id_str, marker);
         } else if (status === google.maps.GeocoderStatus.OVER_QUERY_LIMIT) {
             if (nextIndex > 0)
                 nextIndex--;
@@ -126,24 +138,38 @@ function theNext() {
             getAddress(tweet, theNext);
         }, delay);
         nextIndex++;
+        if (nextIndex % 10 == 0) {
+            showMarkers();
+        }
+    } else {
+        showMarkers();
     }
 }
 
-function geocodeAddress(geocoder, resultsMap, place, tweetId) {
-    var address = place;
-    geocoder.geocode({
-        'address': address
-    }, function (results, status) {
-        if (status === google.maps.GeocoderStatus.OK) {
-            var marker = new google.maps.Marker({
-                icon: icon,
-                map: resultsMap,
-                animation: google.maps.Animation.DROP,
-                position: results[0].geometry.location
-            });
-            addInfowindow(tweetId, marker);
-        } else {
-            console.log('Geocode was not successful for the following reason: ' + status);
-        }
-    });
+function getMarker(pos) {
+    for (var i = 0; i < markers.length; i++) {
+        var markPos = markers[i].getPosition();
+        if (markPos.lat() == pos.lat() && markPos.lng() == pos.lng())
+            return markers[i];
+    }
+    return null;
+}
+
+function setMapOnAll(map) {
+    for (var i = 0; i < markers.length; i++) {
+        markers[i].setMap(map);
+    }
+}
+
+function clearMarkers() {
+    setMapOnAll(null);
+}
+
+function showMarkers() {
+    setMapOnAll(map);
+}
+
+function deleteMarkers() {
+    clearMarkers();
+    markers = [];
 }
