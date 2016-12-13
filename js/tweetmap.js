@@ -3,6 +3,8 @@ var content;
 var geocoder;
 var delay = 100;
 var nextIndex = 0;
+var tweetArray = [];
+var markerSet = new Set();
 
 var icon = "../res/twitter_icon_little.png";
 var icon_pop = "../res/twitter_icon_popular.png";
@@ -30,16 +32,17 @@ function initMap() {
         position: new google.maps.LatLng(40.688559, -74.206308),
         icon: icon_pop,
         map: map,
-        title: 'Tweet'
+        title: 'Tweet',
     });
 
     addInfowindow("807749687944089602", marker);
+    addInfowindow("808078161774776320", marker);
     addInfowindow("808078161774776320", marker2);
 
 }
 
 
-var tweetArray = []
+
 
 function searchTweets(query, geocode) {
     // Dont forgot radius for geocode
@@ -50,11 +53,11 @@ function searchTweets(query, geocode) {
         tweets.forEach(function (tweet) {
             if (tweet.geo != null)
                 console.log('geo' + tweet.geo);
-            else if (tweet.user.location != null) {
-                tweetArray.push(tweet.user.location);
+            else if (tweet.user.location != null && tweet.user.location != '') {
+                console.log(tweet.user.location);
+                tweetArray.push(tweet);
                 //setInterval(geocodeAddress(geocoder, map, tweet.user.location, tweet.id_str), delay);
             }
-            //console.log(tweet.user.location);
         });
         theNext();
     });
@@ -66,10 +69,15 @@ function addInfowindow(tweetId, marker) {
     ajaxGet(url + uri, function (response) {
         var embedTweet = JSON.parse(response);
         //console.log(embedTweet);
-        content = embedTweet.html + "<div>TEST</div>";
+        content = embedTweet.html;
+        if (!marker.content) {
+            marker.content = content;
+        } else {
+            marker.content += content;
+        }
 
         var infowindow = new google.maps.InfoWindow({
-            content: content,
+            content: marker.content,
             maxWidth: embedTweet.width,
         });
 
@@ -90,16 +98,19 @@ function addInfowindow(tweetId, marker) {
     });
 }
 
-function getAddress(tweetLocation, next) {
-    var address = tweetLocation;
+function getAddress(tweet, next) {
+    var address = tweet.user.location;
     geocoder.geocode({
         'address': address
     }, function (results, status) {
         if (status === google.maps.GeocoderStatus.OK) {
-            console.log(results[0].geometry.location.lat());
+            var pos = results[0].geometry.location;
+            var latLng = pos.lat() + ',' + pos.lng();
+            console.log(latLng);
             // Create marker
         } else if (status === google.maps.GeocoderStatus.OVER_QUERY_LIMIT) {
-            nextIndex--;
+            if (nextIndex > 0)
+                nextIndex--;
             delay++;
         } else {
             console.log('Geocode was not successful for the following reason: ' + status);
@@ -110,7 +121,10 @@ function getAddress(tweetLocation, next) {
 
 function theNext() {
     if (nextIndex < tweetArray.length) {
-        setTimeout(getAddress(tweetArray[nextIndex], theNext), delay);
+        var tweet = tweetArray[nextIndex];
+        setTimeout(function () {
+            getAddress(tweet, theNext);
+        }, delay);
         nextIndex++;
     }
 }
