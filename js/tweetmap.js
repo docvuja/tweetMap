@@ -54,9 +54,9 @@ function searchTweets(query, geocode) {
                 tweetArray.push(tweet.user.location);
                 //setInterval(geocodeAddress(geocoder, map, tweet.user.location, tweet.id_str), delay);
             }
-            theNext();
             //console.log(tweet.user.location);
         });
+        theNext();
     });
 }
 
