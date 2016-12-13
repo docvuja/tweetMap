@@ -1,8 +1,10 @@
 var map;
 var content;
 var geocoder;
+var infowindow;
 var delay = 100;
 var nextIndex = 0;
+var markerIndex = 0;
 var tweetArray = [];
 var markers = [];
 
@@ -11,6 +13,7 @@ var icon_pop = "../res/twitter_icon_popular.png";
 
 function initMap() {
 
+    infowindow = new google.maps.InfoWindow();
     map = new google.maps.Map(document.getElementById('map'), {
         center: {
             lat: 40.6976701,
@@ -21,7 +24,7 @@ function initMap() {
     geocoder = new google.maps.Geocoder();
     searchTweets("", "40.6976701,-74.2598661,10km");
 
-    var marker = new google.maps.Marker({
+    /*var marker = new google.maps.Marker({
         position: new google.maps.LatLng(40.6976701, -74.2598661),
         icon: icon_pop,
         map: map,
@@ -37,7 +40,7 @@ function initMap() {
 
     addInfowindow("807749687944089602", marker);
     addInfowindow("808078161774776320", marker);
-    addInfowindow("808078161774776320", marker2);
+    addInfowindow("808078161774776320", marker2);*/
 
 }
 
@@ -49,51 +52,17 @@ function searchTweets(query, geocode) {
     var url = "http://localhost:8888/tweetMap/php/searchtweet.php?q=" + query + "&geocode=" + geocode;
     ajaxGet(url, function (response) {
         var tweets = JSON.parse(response).statuses;
-        //console.log(tweets);
         tweets.forEach(function (tweet) {
-            if (tweet.geo != null)
-                console.log('geo' + tweet.geo);
-            else if (tweet.user.location != null && tweet.user.location != '') {
-                //console.log(tweet.user.location);
+            if (tweet.geo != null) {
+                var coordinates = tweet.geo.coordinates;
+                var latLng = new google.maps.LatLng(coordinates[0], coordinates[1]);
+                addMarker(latLng, tweet, true);
+                console.log('geo:' + latLng);
+            } else if (tweet.user.location != null && tweet.user.location != '') {
                 tweetArray.push(tweet);
             }
         });
         theNext();
-    });
-}
-
-function addInfowindow(tweetId, marker) {
-    var url = "http://localhost:8888/tweetMap/php/tweetdisplay.php?url=";
-    var uri = encodeURIComponent("https://twitter.com/user/status/" + tweetId);
-    ajaxGet(url + uri, function (response) {
-        var embedTweet = JSON.parse(response);
-        //console.log(embedTweet);
-        content = embedTweet.html;
-        if (!marker.content) {
-            marker.content = content;
-        } else {
-            marker.content += content;
-        }
-
-        var infowindow = new google.maps.InfoWindow({
-            content: marker.content,
-            maxWidth: embedTweet.width,
-        });
-
-        marker.addListener('click', function () {
-            infowindow.open(map, marker);
-        });
-
-        google.maps.event.addListener(infowindow, 'domready', function () {
-            ! function (d, s, id) {
-                var js, fjs = d.getElementsByTagName(s)[0];
-                js = d.createElement(s);
-                js.id = id;
-                js.src = "//platform.twitter.com/widgets.js";
-                fjs.parentNode.insertBefore(js, fjs);
-            }
-            (document, "script", "twitter-widgets");
-        });
     });
 }
 
@@ -106,20 +75,8 @@ function getAddress(tweet, next) {
             var pos = results[0].geometry.location;
             var latLng = pos.lat() + ',' + pos.lng();
             console.log(latLng);
-
             // Create Marker
-            var marker;
-            if (getMarker(pos)) {
-                marker = getMarker(pos);
-            } else {
-                marker = new google.maps.Marker({
-                    icon: icon,
-                    animation: google.maps.Animation.DROP,
-                    position: results[0].geometry.location
-                });
-                markers.push(marker);
-            }
-            addInfowindow(tweet.id_str, marker);
+            addMarker(pos, tweet, false);
         } else if (status === google.maps.GeocoderStatus.OVER_QUERY_LIMIT) {
             if (nextIndex > 0)
                 nextIndex--;
@@ -138,12 +95,61 @@ function theNext() {
             getAddress(tweet, theNext);
         }, delay);
         nextIndex++;
-        if (nextIndex % 10 == 0) {
+        /*if (nextIndex % 10 == 0) {
             showMarkers();
-        }
+        }*/
     } else {
-        showMarkers();
+        //showMarkers();
     }
+}
+
+function addInfowindow(tweetId, marker) {
+    var url = "http://localhost:8888/tweetMap/php/tweetdisplay.php?url=";
+    var uri = encodeURIComponent("https://twitter.com/user/status/" + tweetId);
+    ajaxGet(url + uri, function (response) {
+        var embedTweet = JSON.parse(response);
+        content = embedTweet.html;
+        if (!marker.content) {
+            marker.content = content;
+        } else {
+            marker.content += content;
+        }
+
+        google.maps.event.addListener(marker, 'click', (function (marker) {
+            return function () {
+                infowindow.setContent(marker.content);
+                infowindow.open(map, marker);
+            }
+        })(marker));
+
+        google.maps.event.addListener(infowindow, 'domready', function () {
+            ! function (d, s, id) {
+                var js, fjs = d.getElementsByTagName(s)[0];
+                js = d.createElement(s);
+                js.id = id;
+                js.src = "//platform.twitter.com/widgets.js";
+                fjs.parentNode.insertBefore(js, fjs);
+            }
+            (document, "script", "twitter-widgets");
+        });
+    });
+}
+
+function addMarker(location, tweet, geo) {
+    var marker;
+    if (getMarker(location)) {
+        marker = getMarker(location);
+    } else {
+        var iconTweet = geo ? icon_pop : icon;
+        marker = new google.maps.Marker({
+            icon: iconTweet,
+            map: map,
+            animation: google.maps.Animation.DROP,
+            position: location
+        });
+        markers.push(marker);
+    }
+    addInfowindow(tweet.id_str, marker);
 }
 
 function getMarker(pos) {
