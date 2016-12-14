@@ -2,6 +2,8 @@ var map;
 var content;
 var geocoder;
 var infowindow;
+var currentPos;
+
 var delay = 100;
 var nextIndex = 0;
 var markerIndex = 0;
@@ -11,6 +13,53 @@ var markers = [];
 var icon = "../res/twitter_icon_little.png";
 var icon_pop = "../res/twitter_icon_popular.png";
 
+function CenterControl(controlDiv, map) {
+
+    // Set CSS for the control border.
+    var controlUI = document.createElement('div');
+    controlUI.style.backgroundColor = '#fff';
+    controlUI.style.border = '2px solid #fff';
+    controlUI.style.borderRadius = '3px';
+    controlUI.style.boxShadow = '0 2px 6px rgba(0,0,0,.3)';
+    controlUI.style.marginBottom = '22px';
+    controlUI.style.textAlign = 'center';
+    controlDiv.appendChild(controlUI);
+
+    var controlSearch = document.createElement('input');
+    controlSearch.setAttribute('type', 'textbox');
+    controlSearch.setAttribute('placeholder', '#Cavaliers, Beyonce');
+    controlUI.appendChild(controlSearch);
+
+    var controlRadius = document.createElement('input');
+    controlRadius.setAttribute('type', 'range');
+    controlRadius.setAttribute('value', 10);
+    controlRadius.setAttribute('min', 10);
+    controlRadius.setAttribute('max', 100);
+    controlRadius.setAttribute('step', 10);
+    controlRadius.style.cursor = 'pointer';
+    controlUI.appendChild(controlRadius);
+
+    var controlSubmit = document.createElement('input');
+    controlSubmit.setAttribute('type', 'submit');
+    controlSubmit.setAttribute('value', 'Search')
+    controlUI.appendChild(controlSubmit);
+
+    controlSubmit.addEventListener('click', function () {
+        clearMarkers();
+        if (!currentPos && controlSearch.value == '') {
+            alert("No location or query");
+        } else {
+            var geocode = ""
+            if (currentPos) {
+                map.setCenter(currentPos);
+                geocode = currentPos.lat() + ',' + currentPos.lng() + ',' + controlRadius.value + 'km';
+            }
+            searchTweets(controlSearch.value, geocode);
+        }
+
+    });
+}
+
 function initMap() {
 
     infowindow = new google.maps.InfoWindow();
@@ -19,10 +68,17 @@ function initMap() {
             lat: 40.6976701,
             lng: -74.2598661
         },
-        zoom: 10
+        zoom: 4
     });
     geocoder = new google.maps.Geocoder();
-    searchTweets("", "40.6976701,-74.2598661,10km");
+
+    var centerControlDiv = document.createElement('div');
+    var centerControl = new CenterControl(centerControlDiv, map);
+
+    centerControlDiv.index = 1;
+    map.controls[google.maps.ControlPosition.TOP_CENTER].push(centerControlDiv);
+
+    //searchTweets("", "40.6976701,-74.2598661,10km");
 
     /*var marker = new google.maps.Marker({
         position: new google.maps.LatLng(40.6976701, -74.2598661),
