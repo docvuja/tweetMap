@@ -10,7 +10,7 @@ var markerIndex = 0;
 var tweetArray = [];
 var markers = [];
 
-var icon = "../res/twitter_icon_little.png";
+var icon = "../res/twitter_blue.png";
 var icon_pop = "../res/twitter_icon_popular.png";
 
 function CenterControl(controlDiv, map) {
@@ -62,13 +62,44 @@ function CenterControl(controlDiv, map) {
 
 function initMap() {
 
+    var styleArray = [
+        {
+            featureType: 'all',
+            stylers: [
+                {
+                    saturation: -50
+                }
+      ]
+    }, {
+            featureType: 'road.arterial',
+            elementType: 'geometry',
+            stylers: [
+                {
+                    hue: '#00ffee'
+                },
+                {
+                    saturation: 50
+                }
+      ]
+    }, {
+            featureType: 'poi.business',
+            elementType: 'labels',
+            stylers: [
+                {
+                    visibility: 'off'
+                }
+      ]
+    }
+  ];
+
     infowindow = new google.maps.InfoWindow();
     map = new google.maps.Map(document.getElementById('map'), {
         center: {
             lat: 40.6976701,
             lng: -74.2598661
         },
-        zoom: 4
+        zoom: 4,
+        styles: styleArray
     });
     geocoder = new google.maps.Geocoder();
 
