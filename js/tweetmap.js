@@ -30,14 +30,14 @@ function CenterControl(controlDiv, map) {
     controlSearch.setAttribute('placeholder', '#Cavaliers, Beyonce');
     controlUI.appendChild(controlSearch);
 
-    var controlRadius = document.createElement('input');
+    /*var controlRadius = document.createElement('input');
     controlRadius.setAttribute('type', 'range');
     controlRadius.setAttribute('value', 10);
     controlRadius.setAttribute('min', 10);
     controlRadius.setAttribute('max', 100);
     controlRadius.setAttribute('step', 10);
     controlRadius.style.cursor = 'pointer';
-    controlUI.appendChild(controlRadius);
+    controlUI.appendChild(controlRadius);*/
 
     var controlSubmit = document.createElement('input');
     controlSubmit.setAttribute('type', 'submit');
@@ -52,9 +52,10 @@ function CenterControl(controlDiv, map) {
             var geocode = ""
             if (currentPos) {
                 map.setCenter(currentPos);
-                geocode = currentPos.lat() + ',' + currentPos.lng() + ',' + controlRadius.value + 'km';
+                geocode = currentPos.lat() + ',' + currentPos.lng() + ',' + '10km';
             }
-            searchTweets(controlSearch.value, geocode);
+            var query = encodeURIComponent(controlSearch.value);
+            searchTweets(query, geocode);
         }
 
     });
@@ -65,32 +66,24 @@ function initMap() {
     var styleArray = [
         {
             featureType: 'all',
-            stylers: [
-                {
-                    saturation: -50
-                }
-      ]
-    }, {
+            stylers: [{
+                saturation: -50
+            }]
+        }, {
             featureType: 'road.arterial',
             elementType: 'geometry',
-            stylers: [
-                {
-                    hue: '#00ffee'
-                },
-                {
-                    saturation: 50
-                }
-      ]
-    }, {
+            stylers: [{
+                hue: '#00ffee'
+            }, {
+                saturation: 50
+            }]
+        }, {
             featureType: 'poi.business',
             elementType: 'labels',
-            stylers: [
-                {
-                    visibility: 'off'
-                }
-      ]
-    }
-  ];
+            stylers: [{
+                visibility: 'off'
+            }]
+        }];
 
     infowindow = new google.maps.InfoWindow();
     map = new google.maps.Map(document.getElementById('map'), {
@@ -109,29 +102,20 @@ function initMap() {
     centerControlDiv.index = 1;
     map.controls[google.maps.ControlPosition.TOP_CENTER].push(centerControlDiv);
 
-    //searchTweets("", "40.6976701,-74.2598661,10km");
-
-    /*var marker = new google.maps.Marker({
-        position: new google.maps.LatLng(40.6976701, -74.2598661),
-        icon: icon_pop,
-        map: map,
-        title: 'Tweet'
-    });
-
-    var marker2 = new google.maps.Marker({
-        position: new google.maps.LatLng(40.688559, -74.206308),
-        icon: icon_pop,
-        map: map,
-        title: 'Tweet',
-    });
-
-    addInfowindow("807749687944089602", marker);
-    addInfowindow("808078161774776320", marker);
-    addInfowindow("808078161774776320", marker2);*/
+    var script = document.createElement('script');
+    var url = ['https://www.googleapis.com/fusiontables/v1/query?'];
+    url.push('sql=');
+    var query = 'SELECT name, kml_4326 FROM ' +
+        '1foc3xO9DyfSIF6ofvN0kp2bxSfSeKog5FbdWdQ';
+    var encodedQuery = encodeURIComponent(query);
+    url.push(encodedQuery);
+    url.push('&callback=drawMap');
+    url.push('&key=AIzaSyAm9yWCV7JPCTHCJut8whOjARd7pwROFDQ');
+    script.src = url.join('');
+    var body = document.getElementsByTagName('body')[0];
+    body.appendChild(script);
 
 }
-
-
 
 
 function searchTweets(query, geocode) {
@@ -151,6 +135,59 @@ function searchTweets(query, geocode) {
         });
         theNext();
     });
+}
+
+function drawMap(data) {
+    var rows = data['rows'];
+    for (var i in rows) {
+        if (rows[i][0] != 'Antarctica') {
+            var newCoordinates = [];
+            var geometries = rows[i][1]['geometries'];
+            if (geometries) {
+                for (var j in geometries) {
+                    newCoordinates.push(constructNewCoordinates(geometries[j]));
+                }
+            } else {
+                newCoordinates = constructNewCoordinates(rows[i][1]['geometry']);
+            }
+            var country = new google.maps.Polygon({
+                paths: newCoordinates,
+                strokeColor: '#011d34',
+                strokeOpacity: 0.5,
+                strokeWeight: 0.3,
+                fillColor: '#2184ee',
+                fillOpacity: 0,
+                name: rows[i][0]
+            });
+            google.maps.event.addListener(country, 'mouseover', function () {
+                this.setOptions({
+                    fillOpacity: 0.4
+                });
+            });
+            google.maps.event.addListener(country, 'mouseout', function () {
+                this.setOptions({
+                    fillOpacity: 0
+                });
+            });
+            google.maps.event.addListener(country, 'click', function () {
+                // Zoom on country with coordinates
+                // Get
+                alert(this.name);
+            });
+
+            country.setMap(map);
+        }
+    }
+}
+
+function constructNewCoordinates(polygon) {
+    var newCoordinates = [];
+    var coordinates = polygon['coordinates'][0];
+    for (var i in coordinates) {
+        newCoordinates.push(
+            new google.maps.LatLng(coordinates[i][1], coordinates[i][0]));
+    }
+    return newCoordinates;
 }
 
 function getAddress(tweet, next) {
