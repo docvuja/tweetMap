@@ -4,6 +4,8 @@ var geocoder;
 var infowindow;
 var currentPos;
 
+var places = new Map();
+
 var delay = 100;
 var nextIndex = 0;
 var markerIndex = 0;
@@ -13,7 +15,7 @@ var markers = [];
 var icon = "../res/twitter_blue.png";
 var icon_pop = "../res/twitter_icon_popular.png";
 
-function CenterControl(controlDiv, map) {
+function CenterControl(controlDiv) {
 
     // Set CSS for the control border.
     var controlUI = document.createElement('div');
@@ -45,7 +47,6 @@ function CenterControl(controlDiv, map) {
     controlUI.appendChild(controlSubmit);
 
     controlSubmit.addEventListener('click', function () {
-        clearMarkers();
         if (!currentPos && controlSearch.value == '') {
             alert("No location or query");
         } else {
@@ -59,6 +60,27 @@ function CenterControl(controlDiv, map) {
         }
 
     });
+}
+
+function LeftControl(controlDiv, map) {
+
+    var controlUI = document.createElement('div');
+    controlUI.style.backgroundColor = '#fff';
+    controlUI.style.border = '2px solid #fff';
+    controlUI.style.borderRadius = '3px';
+    controlUI.style.boxShadow = '0 2px 6px rgba(0,0,0,.3)';
+    controlUI.style.marginBottom = '22px';
+    controlUI.style.textAlign = 'center';
+    controlDiv.appendChild(controlUI);
+
+    var controlTitle = document.createElement('p');
+    controlTitle.id = "trends-title";
+    controlTitle.textContent = "Trends : ";
+    controlUI.appendChild(controlTitle);
+
+    var controlList = document.createElement('ul');
+    controlList.id = "trends";
+    controlUI.appendChild(controlList);
 }
 
 function initMap() {
@@ -88,20 +110,104 @@ function initMap() {
     infowindow = new google.maps.InfoWindow();
     map = new google.maps.Map(document.getElementById('map'), {
         center: {
-            lat: 40.6976701,
-            lng: -74.2598661
+            lat: 51.4825766,
+            lng: -0.0098476
         },
-        zoom: 4,
+        zoom: 3,
         styles: styleArray
     });
     geocoder = new google.maps.Geocoder();
 
     var centerControlDiv = document.createElement('div');
-    var centerControl = new CenterControl(centerControlDiv, map);
-
+    var centerControl = new CenterControl(centerControlDiv);
     centerControlDiv.index = 1;
-    map.controls[google.maps.ControlPosition.TOP_CENTER].push(centerControlDiv);
 
+    var leftControlDiv = document.createElement('div');
+    var leftControl = new LeftControl(leftControlDiv);
+    leftControlDiv.index = 2;
+
+    map.controls[google.maps.ControlPosition.TOP_CENTER].push(centerControlDiv);
+    map.controls[google.maps.ControlPosition.LEFT_CENTER].push(leftControlDiv);
+
+    loadPolygon();
+    fillPlace();
+
+}
+
+// TWITTER
+
+function searchTweets(query, geocode) {
+    // Dont forgot radius for geocode
+    clearMarkers();
+    var url = "http://localhost:8888/tweetMap/php/searchtweet.php?q=" + query + "&geocode=" + geocode;
+    ajaxGet(url, function (response) {
+        var tweets = JSON.parse(response).statuses;
+        console.log(tweets);
+        tweets.forEach(function (tweet) {
+            if (tweet.geo != null) {
+                var coordinates = tweet.geo.coordinates;
+                var latLng = new google.maps.LatLng(coordinates[0], coordinates[1]);
+                addMarker(latLng, tweet, true);
+                console.log('geo:' + latLng);
+            } else if (tweet.user.location != null && tweet.user.location != '') {
+                tweetArray.push(tweet);
+            }
+        });
+        theNext();
+    });
+}
+
+function fillPlace() {
+    var url = "http://localhost:8888/tweetMap/php/trend.php";
+    ajaxGet(url, function (response) {
+        var trendPlaces = JSON.parse(response);
+        var countries = trendPlaces.filter(function (place) {
+            return place.placeType.name === "Country";
+        })
+        countries.forEach(function (country) {
+            places.set(country.name, country.woeid);
+        })
+    });
+}
+
+function trendByPlace(woeid) {
+    var url = "http://localhost:8888/tweetMap/php/trend.php?woeid=" + woeid;
+    ajaxGet(url, function (response) {
+        var parsed = JSON.parse(response)[0];
+        var trends = parsed.trends;
+        var country = parsed.locations[0].name;
+        console.log(parsed);
+
+        var trendTitle = document.getElementById('trends-title');
+        trendTitle.innerHTML = "Trends :" + country;
+        var trendControl = document.getElementById('trends');
+
+        while (trendControl.hasChildNodes()) {
+            trendControl.removeChild(trendControl.lastChild);
+        }
+
+        for (var i = 0; i < 9; i++) {
+            if (i > trends.length)
+                break;
+            var trend = trends[i];
+            var trendLi = document.createElement('li');
+            trendLi.innerHTML = trend.name;
+            trendLi.setAttribute('id', trend.query);
+            trendLi.style.cursor = 'pointer';
+            trendLi.addEventListener('click', function () {
+                console.log(this.id);
+                searchTweets(this.id, '');
+            }, false);
+            trendControl.appendChild(trendLi);
+
+        }
+
+    });
+}
+
+// POLYGON
+
+function loadPolygon() {
     var script = document.createElement('script');
     var url = ['https://www.googleapis.com/fusiontables/v1/query?'];
     url.push('sql=');
@@ -115,26 +221,6 @@ function initMap() {
     var body = document.getElementsByTagName('body')[0];
     body.appendChild(script);
 
-}
-
-
-function searchTweets(query, geocode) {
-    // Dont forgot radius for geocode
-    var url = "http://localhost:8888/tweetMap/php/searchtweet.php?q=" + query + "&geocode=" + geocode;
-    ajaxGet(url, function (response) {
-        var tweets = JSON.parse(response).statuses;
-        tweets.forEach(function (tweet) {
-            if (tweet.geo != null) {
-                var coordinates = tweet.geo.coordinates;
-                var latLng = new google.maps.LatLng(coordinates[0], coordinates[1]);
-                addMarker(latLng, tweet, true);
-                console.log('geo:' + latLng);
-            } else if (tweet.user.location != null && tweet.user.location != '') {
-                tweetArray.push(tweet);
-            }
-        });
-        theNext();
-    });
 }
 
 function drawMap(data) {
@@ -170,9 +256,9 @@ function drawMap(data) {
                 });
             });
             google.maps.event.addListener(country, 'click', function () {
-                // Zoom on country with coordinates
-                // Get
-                alert(this.name);
+                zoomIn(this.getPath());
+                var woeid = places.get(this.name);
+                trendByPlace(woeid);
             });
 
             country.setMap(map);
@@ -189,6 +275,17 @@ function constructNewCoordinates(polygon) {
     }
     return newCoordinates;
 }
+
+function zoomIn(polygon) {
+    var bounds = new google.maps.LatLngBounds();
+    polygon.forEach(function (coordinate) {
+        bounds.extend(coordinate);
+    });
+
+    map.fitBounds(bounds);
+}
+
+// GEOCODE
 
 function getAddress(tweet, next) {
     var address = tweet.user.location;
@@ -223,8 +320,28 @@ function theNext() {
             showMarkers();
         }*/
     } else {
+        console.log(nextIndex);
         //showMarkers();
     }
+}
+
+// MARKER
+
+function addMarker(location, tweet, geo) {
+    var marker;
+    if (getMarker(location)) {
+        marker = getMarker(location);
+    } else {
+        var iconTweet = geo ? icon_pop : icon;
+        marker = new google.maps.Marker({
+            icon: iconTweet,
+            map: map,
+            animation: google.maps.Animation.DROP,
+            position: location
+        });
+        markers.push(marker);
+    }
+    addInfowindow(tweet.id_str, marker);
 }
 
 function addInfowindow(tweetId, marker) {
@@ -257,23 +374,6 @@ function addInfowindow(tweetId, marker) {
             (document, "script", "twitter-widgets");
         });
     });
-}
-
-function addMarker(location, tweet, geo) {
-    var marker;
-    if (getMarker(location)) {
-        marker = getMarker(location);
-    } else {
-        var iconTweet = geo ? icon_pop : icon;
-        marker = new google.maps.Marker({
-            icon: iconTweet,
-            map: map,
-            animation: google.maps.Animation.DROP,
-            position: location
-        });
-        markers.push(marker);
-    }
-    addInfowindow(tweet.id_str, marker);
 }
 
 function getMarker(pos) {
